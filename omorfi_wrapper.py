@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
+import os, platform
 import sys
 import logging
 import select
@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.WARNING)
 import subprocess
 
 SCRIPTDIR=os.path.dirname(os.path.abspath(__file__))
+osname = platform.system().lower()
 
 class HFSTError(Exception): pass
 
@@ -30,7 +31,10 @@ class OmorfiWrapper(object):
         if self.process is not None:
             #Try to kill
             self.process.terminate()
-        self.poll=select.kqueue()
+        if "darwin" in osname:
+            self.poll=select.kqueue()
+        else:
+            self.poll=select.poll()
         try:
             self.log.info("Starting hfst-ol.jar")
             self.process = subprocess.Popen(["java","-jar", os.path.join(SCRIPTDIR,"LIBS","hfst-ol.jar"), self.transducer_file], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -49,9 +53,10 @@ class OmorfiWrapper(object):
             sys.exit(1)
         self.log.info("Started the HFST process.")
         # stdout = 2 :: self.process.stdout
-        self.poll.fromfd(2)
-        
-
+        if "darwin" in osname:
+            self.poll.fromfd(2)
+        else:
+            self.poll.register(self.process.stdout)
 
     def lookup(self, word):
         self.log.info("Sending in query: %s" % word)
